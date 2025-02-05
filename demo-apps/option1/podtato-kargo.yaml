@@ -1,0 +1,194 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+  name: team-1-podtato-kargo-project
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: warehouse-podtato
+  namespace: team-1-podtato-kargo-project
+spec:
+  subscriptions:
+    - git:
+        repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: test
+  namespace: team-1-podtato-kargo-project
+spec:
+  promotionTemplate:
+    spec:
+      steps:
+        - config:
+            checkout:
+              - fromFreight: true
+                path: ./src
+              - branch: stages/test
+                create: true
+                path: ./out
+            repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: git-clone
+        - config:
+            path: ./out
+          uses: git-clear
+        - config:
+            inPath: ./src
+            outPath: ./out
+          uses: copy
+        - as: commit
+          config:
+            message: Kargo applied some changes
+            path: ./out
+          uses: git-commit
+        - config:
+            path: ./out
+            targetBranch: stages/test
+          uses: git-push
+        - config:
+            apps:
+              - name: podtato-test
+                namespace: adn-team-1
+                sources:
+                  - desiredCommitFromStep: commit
+                    repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: argocd-update
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: warehouse-podtato
+      sources:
+        direct: true
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: qa
+  namespace: team-1-podtato-kargo-project
+spec:
+  promotionTemplate:
+    spec:
+      steps:
+        - config:
+            checkout:
+              - fromFreight: true
+                path: ./src
+              - branch: stages/qa
+                create: true
+                path: ./out
+            repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: git-clone
+        - config:
+            path: ./out
+          uses: git-clear
+        - config:
+            inPath: ./src
+            outPath: ./out
+          uses: copy
+        - as: commit
+          config:
+            message: Kargo applied some changes
+            path: ./out
+          uses: git-commit
+        - config:
+            path: ./out
+            targetBranch: stages/qa
+          uses: git-push
+        - config:
+            apps:
+              - name: podtato-qa
+                namespace: adn-team-1
+                sources:
+                  - desiredCommitFromStep: commit
+                    repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: argocd-update
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: warehouse-podtato
+      sources:
+        stages:
+          - test
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: team-1-podtato-kargo-project
+spec:
+  promotionTemplate:
+    spec:
+      steps:
+        - config:
+            checkout:
+              - fromFreight: true
+                path: ./src
+              - branch: stages/prod
+                create: true
+                path: ./out
+            repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: git-clone
+        - config:
+            path: ./out
+          uses: git-clear
+        - config:
+            inPath: ./src
+            outPath: ./out
+          uses: copy
+        - as: commit
+          config:
+            message: Kargo applied some changes
+            path: ./out
+          uses: git-commit
+        - config:
+            path: ./out
+            targetBranch: stages/prod
+          uses: git-push
+        - config:
+            apps:
+              - name: podtato-prod
+                namespace: adn-team-1
+                sources:
+                  - desiredCommitFromStep: commit
+                    repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+          uses: argocd-update
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: warehouse-podtato
+      sources:
+        stages:
+          - qa
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  labels:
+    kargo.akuity.io/cred-type: git
+  name: podtato-git-creds
+  namespace: team-1-podtato-kargo-project
+spec:
+  data:
+    - remoteRef:
+        key: sx-cnp-oss-kv/data/team-1/delivery
+        property: KARGO_GIT_PASSWORD
+      secretKey: KARGO_GIT_PASSWORD
+  refreshInterval: 15s
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: podtato-git-creds
+    template:
+      data:
+        password: '{{ .KARGO_GIT_PASSWORD }}'
+        repoURL: 'https://github.com/kubriX-demo/team-1-podtato-head'
+        repoURLIsRegex: 'false'
+        username: 'dummy'
+      metadata:
+        labels:
+          kargo.akuity.io/cred-type: git

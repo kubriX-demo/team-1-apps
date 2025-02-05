@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podtato-qa
+  namespace: adn-team-1
+  annotations:
+    kargo.akuity.io/authorized-stage: team-1-podtato-kargo-project:qa
+spec:
+  destination:
+    namespace: team-1-podtato-qa
+    name: spoke-cluster-nonprod
+  project: team-1-project
+  source:
+    repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+    targetRevision: main
+    path: .
+    helm:
+      valueFiles:
+        - values-qa.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      annotations:
+        argocd.argoproj.io/tracking-id: adn-team-1_podtato-qa:app/Namespace:team-1-podtato-qa/team-1-podtato-qa
+    syncOptions:
+    - CreateNamespace=true
+
