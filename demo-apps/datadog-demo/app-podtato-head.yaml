@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podtato-datadog
+  namespace: adn-team-1
+spec:
+  destination:
+    namespace: team-1-podtato-datadog
+    name: in-cluster
+  project: team-1-project
+  source:
+    repoURL: https://github.com/kubriX-demo/team-1-podtato-head
+    targetRevision: main
+    path: .
+    helm:
+      valueFiles:
+        - values-test.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      annotations:
+        argocd.argoproj.io/tracking-id: adn-team-1_podtato-datadog:app/Namespace:team-1-podtato-datadog/team-1-podtato-datadog
+    syncOptions:
+    - CreateNamespace=true
